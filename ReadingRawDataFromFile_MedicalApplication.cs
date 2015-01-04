@@ -1,0 +1,293 @@
+// -------------------------------------------------------------------	
+// Department of Electrical and Computer Engineering
+// University of Waterloo
+//
+// Student Name:     PRAGASH SIVASUNDARAM
+// Userid:           psivasun
+//
+// Assignment:       PROGRAMMING ASSIGNMENT 3
+// Submission Date:  NOVERMBER 13TH 2014
+// 
+// I declare that, other than the acknowledgements listed below, 
+// this program is my original work.
+//
+// Acknowledgements:
+// NONE
+// -------------------------------------------------------------------
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+
+// Class holds the sequence description of a protein.
+class Protein
+{
+    string id;
+    string name;
+    string sequence;
+
+    public Protein(string id, string name, string sequence)
+    {
+        this.id = id;
+        this.name = name;
+        this.sequence = sequence;
+    }
+
+    public string Id { get { return id; } }
+    public string Name { get { return name; } }
+
+    // Does the protein sequence contain a specified subsequence?
+    public bool ContainsSubsequence(string sub)
+    {
+        //Uses the native "Contains" method of the string 
+        //Returns true if "sub" is in "sequence" 
+        return sequence.Contains(sub);
+    }
+
+    // How often does a specified subsequence occur in the protein?
+    public int CountSubsequence(string sub)
+    {
+        int count = 0;
+        // Stores the index of the next occurrence of "sub"
+        int nextIndex = 0;
+        // Stores the shortened string with not yet found "sub"s 
+        string newString = sequence;
+
+        while (true)
+        {
+            // newString starts after the end of the already found "sub"
+            newString = newString.Substring(nextIndex);
+            // Finds the next occurrence of sub in the newSring
+            nextIndex = newString.IndexOf(sub);
+
+            // Continues the loop as long as an index for the next "sub" is found  
+            if (nextIndex >= 0)
+                nextIndex += sub.Length;
+            else break;
+
+            // Adds to the counter at every iteration of the loop
+            count++;
+        }
+        // Returns the counter to the user
+        return (count);
+    }
+
+    // Output a string showing only the location of a specified subsequence
+    // in the sequence which specifies the protein.
+    public string LocateSubsequence(string sub)
+    {
+        string output = "";
+        int nextIndex = 0;
+        // Stores the shortened string with not yet found "sub"s 
+        string newString = sequence;
+
+        while (true)
+        {
+            // Starts the newString after the end of the found "sub"
+            newString = newString.Substring(nextIndex);
+            // Finds the next occurrence of "sub" in the newString
+            nextIndex = newString.IndexOf(sub);
+
+            // Prints "." for all chars in sequence after 
+            // 	the last occurrence of "sub"
+            if (nextIndex == -1)
+                nextIndex = newString.Length;
+
+            // Prints "." till the next occurrence of "sub"
+            for (int i = 0; i < nextIndex; i++)
+                output += ".";
+
+            // Exists loop after the last occurence of "sub"
+            if (nextIndex == newString.Length) break;
+
+            // Adds the "sub"  
+            output += sub;
+
+            // Sets the nextIndex to Index after the end of "sub" 
+            nextIndex += sub.Length;
+        }
+        return output;
+    }
+
+    // Write the FASTA description of the protein to a given text stream.
+    public void WriteFasta(TextWriter output)
+    {
+        // Initiates the beginning and end cursors 
+        int begin = 0;
+        int end = begin + 1;
+
+        // Prints the header 
+        output.WriteLine(">" + id + name);
+
+        // Executes until the end of sequence
+        while (true)
+        {
+
+            // Prints the rest of the sequence if shorter than a whole line
+            if (end * 80 < sequence.Length)
+            {
+                output.WriteLine(sequence.Substring(80 * begin));
+                break;
+            }
+
+            // Prints a block of sequence 80 characters in length
+            else
+            {
+                output.WriteLine(sequence.Substring(80 * begin, 80 * end));
+                // Sets the cursor over 80 characters to a new block
+                begin++;
+                end++;
+            }
+        }
+        return;
+    }
+}
+
+// Read a protein file into a collection and test the functionality of
+// methods in the Protein class.
+static class Program
+{
+    static string fastaFile = "protein.fasta";
+
+    // Picked generic collection to hold the protein data
+    static List<Protein> proteins = new List<Protein>();
+
+    static void Main()
+    {
+        // Read proteins in FASTA format from the file.
+        using (StreamReader sr = new StreamReader(fastaFile))
+        {
+
+            string line = sr.ReadLine();
+            string sequence = "";
+            string name;
+            string id;
+            bool seqComplete = false;
+
+            while (line != null)
+            {
+
+                // Initializes the header to null
+                name = null;
+                id = null;
+
+                // Executes until a valid header is identified 
+                while (id == null && name == null && line != null)
+                {
+
+                    // Continues to next line if current line is empty
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    // If a valid header is identified 
+                    else if (line[0] == '>')
+                    {
+                        id = line.Substring(1, 10);
+                        name = line.Substring(11);
+                    }
+
+                    // throws an error if no header is identified 
+                    else
+                        throw new Exception("Expected a header line.");
+
+                }
+
+                sequence = null;
+                // Executes until a valid sequence is identified
+                while (!seqComplete && line != null)
+                {
+                    line = sr.ReadLine();
+
+                    // Continues to next line if current line is empty					
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    // If a non-header line, non-empty line is found, annexes to sequence
+                    else if (line[0] != '>')
+                        sequence += line;
+
+                    // If a new header line is found and sequence is filled, then exits
+                    else if (line[0] == '>' && sequence != null)
+                        seqComplete = true;
+
+
+                    // Throws an exception if no sequence is found after header
+                    else
+                        throw new Exception("Expected a sequence line.");
+                }
+
+                if (id != null && name != null)
+                {
+
+                    // If a valid sequence and a valid header found, creates a protein
+                    if (sequence != null)
+                    {
+                        Protein curntProtein = new Protein(id, name, sequence);
+
+                        // Adds the current protein to the proteins list
+                        proteins.Add(curntProtein);
+                        // Resets the protein sequence
+                        seqComplete = false;
+                    }
+
+                    // Throws an exception if found header with no sequence
+                    else
+                        throw new Exception("Expected a sequence after header");
+                }
+            }
+        }
+
+        // Report count of proteins loaded.
+        Console.WriteLine("..");
+        Console.WriteLine("Loaded {0} proteins from the {1} file.",
+            proteins.Count, fastaFile);
+
+        // Report proteins containing a specified sequence.
+        Console.WriteLine();
+        Console.WriteLine("Proteins containing sequence RILED:");
+        foreach (Protein p in proteins)
+        {
+            if (p.ContainsSubsequence("RILED"))
+            {
+                Console.WriteLine(p.Name);
+            }
+        }
+
+        // Report proteins containing a repeated sequence.
+        Console.WriteLine();
+        Console.WriteLine(
+            "Proteins containing sequence SNL more than 5 times:");
+        foreach (Protein p in proteins)
+        {
+            if (p.CountSubsequence("SNL") > 5)
+            {
+                Console.WriteLine(p.Name);
+            }
+        }
+
+        // Locate the specified sequence in proteins containing it.
+        Console.WriteLine();
+        Console.WriteLine("Proteins containing sequence DEVGG:");
+        foreach (Protein p in proteins)
+        {
+            if (p.ContainsSubsequence("DEVGG"))
+            {
+                Console.WriteLine(p.Name);
+                Console.WriteLine(p.LocateSubsequence("DEVGG"));
+            }
+        }
+
+        // Show FASTA output for proteins containing a specified sequence.
+        Console.WriteLine();
+        Console.WriteLine("Proteins containing sequence DEVGG:");
+        foreach (Protein p in proteins)
+        {
+            if (p.ContainsSubsequence("DEVGG"))
+            {
+                p.WriteFasta(Console.Out);
+            }
+        }
+
+    }
+}
